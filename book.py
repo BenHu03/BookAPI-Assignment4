@@ -4,9 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
-from werkzeug.security import generate_password_hash, check_password_hash
+from flask_bcrypt import Bcrypt
 from datetime import timedelta
 import os
+import re
 
 app = Flask(__name__)
 
@@ -18,6 +19,28 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
+bcrypt = Bcrypt(app)
+
+# --- Validation Functions ---
+def validate_username(username):
+    # Username: 3-20 characters, alphanumeric and underscore only
+    if not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
+        return False
+    return True
+
+def validate_password(password):
+    # Password: at least 8 characters, one uppercase, one lowercase, one digit, one special character
+    if len(password) < 8:
+        return False
+    if not re.search(r'[A-Z]', password):
+        return False
+    if not re.search(r'[a-z]', password):
+        return False
+    if not re.search(r'[0-9]', password):
+        return False
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False
+    return True
 
 # --- Models ---
 class User(db.Model):
@@ -40,7 +63,7 @@ def seed_data():
     # Seed user
     admin = User(
         username="admin",
-        password_hash=generate_password_hash("password")
+        password_hash=bcrypt.generate_password_hash("password").decode('utf-8')
     )
     db.session.add(admin)
     db.session.commit()
@@ -66,12 +89,18 @@ def register():
     if not data or "username" not in data or "password" not in data:
         return jsonify({"msg": "username and password required"}), 400
 
+    if not validate_username(data["username"]):
+        return jsonify({"msg": "username must be 3-20 characters, alphanumeric and underscore only"}), 400
+
+    if not validate_password(data["password"]):
+        return jsonify({"msg": "password must be at least 8 characters with uppercase, lowercase, digit, and special character"}), 400
+
     if User.query.filter_by(username=data["username"]).first():
         return jsonify({"msg": "username already exists"}), 400
 
     user = User(
         username=data["username"],
-        password_hash=generate_password_hash(data["password"])
+        password_hash=bcrypt.generate_password_hash(data["password"]).decode('utf-8')
     )
     db.session.add(user)
     db.session.commit()
@@ -86,7 +115,7 @@ def login():
         return jsonify({"msg": "username and password required"}), 400
 
     user = User.query.filter_by(username=data["username"]).first()
-    if not user or not check_password_hash(user.password_hash, data["password"]):
+    if not user or not bcrypt.check_password_hash(user.password_hash, data["password"]):
         return jsonify({"msg": "invalid credentials"}), 401
 
     # IMPORTANT: identity must be a string to avoid "Subject must be a string" error
