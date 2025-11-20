@@ -13,7 +13,7 @@ SQLite is used as persistent storage, and the first run automatically seeds:
 
 ## 📦 Installation
 1. Install dependencies
-`pip install flask flask_sqlalchemy     flask_jwt_extended werkzeug`
+`pip install flask flask_sqlalchemy flask_jwt_extended flask-bcrypt`
 
 2. Run the app
 `python book.py`
@@ -22,7 +22,9 @@ SQLite is used as persistent storage, and the first run automatically seeds:
 
 
 ## 🔐 Authentication
-This API uses JWT for authentication.
+This API uses JWT for authentication with bcrypt password hashing and robust input validation.
+- **Username validation**: 3-20 characters, alphanumeric and underscore only.
+- **Password validation**: At least 8 characters, with at least one uppercase letter, one lowercase letter, one digit, and one special character (e.g., !@#$%^&*(),.?":{}|<>).
 1. Users register with `/auth/register`
 2. Users login with `/auth/login`
 3. Authenticated users get a JWT token (Bearer token)
@@ -38,7 +40,7 @@ This API uses JWT for authentication.
 ### Authentication Endpoints
 | Method | Endpoint            | Body Example                                      | Response                                      |
 |--------|---------------------|---------------------------------------------------|-----------------------------------------------|
-| POST   | `/auth/register`    | `{"username":"bob","password":"secret123"}`      | 201 `{"msg":"registration successful"}`       |
+| POST   | `/auth/register`    | `{"username":"bob","password":"Secret123!"}`      | 201 `{"msg":"registration successful"}`       |
 | POST   | `/auth/login`       | `{"username":"admin","password":"password"}`     | 200 `{"access_token":"eyJ..."}`               |
 
 **Use the token on protected routes**  
@@ -81,7 +83,7 @@ Later, after login, fill TOKEN with access_token from login result
 ```json
 {
   "username": "user1",
-  "password": "pass123"
+  "password": "Pass123!"
 }
 ```
 #### Expected Response
